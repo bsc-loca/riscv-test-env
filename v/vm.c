@@ -17,14 +17,14 @@
 void trap_entry();
 void pop_tf(trapframe_t*);
 
-extern volatile uint64_t tohost;
-extern volatile uint64_t fromhost;
+static volatile uint64_t *tohost   = (uint64_t *) 0xffffffffffc00000;  // tohost is at 0x4000_0000
+static volatile uint64_t *fromhost = (uint64_t *) 0xffffffffffc00040;  // 0x4000_0000 is mapped to 0xfc00_0000
 
 static void do_tohost(uint64_t tohost_value)
 {
-  while (tohost)
-    fromhost = 0;
-  tohost = tohost_value;
+  while (*tohost) *fromhost = 0;
+
+  *tohost = tohost_value;
 }
 
 #define pa2kva(pa) ((void*)(pa) - DRAM_BASE - MEGAPAGE_SIZE)
@@ -261,6 +261,7 @@ void vm_boot(uintptr_t test_addr)
 #elif SATP_MODE_CHOICE == SATP_MODE_SV39
   l1pt[PTES_PER_PT-1] = ((pte_t)kernel_l2pt >> PGSHIFT << PTE_PPN_SHIFT) | PTE_V;
   kernel_l2pt[PTES_PER_PT-1] = (DRAM_BASE/RISCV_PGSIZE << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+  kernel_l2pt[PTES_PER_PT-2] = (EXT_IO_BASE/RISCV_PGSIZE << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
   user_l2pt[0] = ((pte_t)user_llpt >> PGSHIFT << PTE_PPN_SHIFT) | PTE_V;
 #elif SATP_MODE_CHOICE == SATP_MODE_SV32
   l1pt[PTES_PER_PT-1] = (DRAM_BASE/RISCV_PGSIZE << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
